@@ -1,0 +1,31 @@
+#!/usr/bin/env Rscript
+
+# Usage: GcGduGde.plot.Rscript  out.svg  ref.fa.fai.geom  gc.geom  du.geom  de.geom
+
+library(ggplot2)
+
+args = commandArgs(trailingOnly = T)
+
+chr = read.table(args[2])
+gc = read.table(args[3])
+du = read.table(args[4])
+de = read.table(args[5])
+
+svg(filename = args[1], width = 15, height = 15)
+
+ggplot() + 
+    geom_polygon(aes(x=gc$V1, y=gc$V2),fill='#7570b3') +
+    geom_polygon(aes(x=du$V1, y=du$V2),fill='#1b9e77') +
+    geom_polygon(aes(x=de$V1, y=de$V2),fill='#d95f02') +
+    geom_path(aes(x=chr$V1,y=chr$V2)) +
+    theme(
+        axis.title = element_blank(), 
+        axis.ticks = element_blank(),
+        plot.background = element_blank(),
+        axis.text = element_blank(),
+        axis.line = element_blank(),
+        panel.background = element_blank(),
+        panel.grid = element_blank()
+    )
+
+
