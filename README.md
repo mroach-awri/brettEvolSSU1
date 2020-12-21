@@ -1,6 +1,6 @@
 
-Bioinformatics scripts and workflows for publication _"Development of sulfite
- tolerance in Brettanomyces bruxellensis by Adaptive Laboratory Evolution"_
+Bioinformatics scripts and workflows for publication 
+_"Adaptive evolution of sulfite tolerance in Brettanomyces bruxellensis"_
 
 ## Overview
 
