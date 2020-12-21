@@ -201,9 +201,7 @@ cat 1499.racon.pilon.fasta | sed 's/_pilon//' > 1499.diploid.newPolished.fasta
 
 We annotated genes with Augustus and used these for initially investigating
 the key genes, but the results in the manuscript relating to genes affected by
-SVs all relate to the AWRI2804 reference annotations. AWRI2804 annotations 
-are available [HERE](https://github.com/mroach-awri/BrettanomycesGenComp), 
-listed as "B. bruxellensis".
+SVs all relate to the AWRI2804 reference annotations.
 
 ```bash
 augustus --species=saccharomyces_cerevisiae_S288C 1499.diploid.newPolished.fasta > 1499.gff
