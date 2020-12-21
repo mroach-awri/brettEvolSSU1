@@ -1,30 +1,40 @@
 
+Bioinformatics scripts and workflows for publication _"Development of sulfite
+ tolerance in Brettanomyces bruxellensis by Adaptive Laboratory Evolution"_
 
 ## Overview
 
- - Create haploid assembly of AWRI1499
- - Phase and bin reads into the A1 + A2 haplomes and B haplome
- - Separately assembled the A1 + A2 haplomes and the B haplome
+ - [Create an initial haploid assembly of AWRI1499](#initial-haploid-assembly)
+ - [Phase reads into the A1 + A2 haplomes and the B haplome](#longshot)
+ - [Bin the phased reads for reassembly](#read-binning)
+ - [Separately assemble the A1 + A2 haplomes and the B haplome](#reassembly)
+ - [Polish and annotate](#polishing)
+ - [Call structural variants](#sv-calling)
 
 
-## Initial assembly
+## Initial haploid assembly
 
 ### Canu
 
 ```bash
 canu -p 1499 -d CANU-NP-PB-2 \
-    -genomeSize=24m -stopOnReadQuality=false \
-    -nanopore-raw 1499.fastq.gz -nanopore-raw 1499.failed.fastq.gz \
+    -genomeSize=24m \
+    -stopOnReadQuality=false \
+    -nanopore-raw 1499.fastq.gz \
+    -nanopore-raw 1499.failed.fastq.gz \
     -pacbio-raw 1499.pb.fastq.gz \
-    -minReadLength=3500 -minOverlapLength=2500 \
-    -corOutCoverage=100 -correctedErrorRate=0.11
+    -minReadLength=3500 \
+    -minOverlapLength=2500 \
+    -corOutCoverage=100 \
+    -correctedErrorRate=0.11
 ```
 
 ### Purge Haplotigs
 
-We originally tried deduplicating the contigs but the haplotype switching made
+We originally tried deduplicating the _contigs_ but haplotype switching made
 completely deduplicating the assembly impossible. We therefore mapped nanpore 
-reads to the canu unitigs to allow for the most deduplicated assembly possible.
+reads to the assembly _unitigs_, allowing complete deduplication which was 
+necessary for only phasing the B haplome from the A1 + A2 haplomes.
 
 ```bash
 minimap2 -t 12 1499.unitigs.fasta 1499.fastq.gz | samtools sort -@ 4 -m 1G -o aligned.bam
@@ -37,12 +47,12 @@ purge_haplotigs place -p clip.fasta -h clip.haplotigs.fasta -f
 
 ### Longshot
 
-Longshot had a propensity to phase the divergent haplotype while keeping the two
-more similar haplotypes together--which was ideal. Several contigs still had 
-hapltype switching, and these contigs needed to be split to properly bin the 
-reads. Contigs > ~50kb were manually eyeballed and sorted. contigs < ~50kb with 
-roughly 2:1 size ratio were sorted into their anticipated bins (double size = 
-the two similar haplotyes, half size = divergent). 
+Longshot had a propensity to phase the divergent haplotype (B) while keeping the
+two more similar haplotypes (A1 and A2) together. This observation shaped the 
+assembly strategy. Several contigs still had hapltype switching which needed to 
+be split to properly bin the reads. Contigs > 50kb were manually inspected and 
+sorted. contigs < ~50kb with roughly 2:1 size ratio were sorted into their 
+anticipated bins (double size = A1 + A2, half size = B). 
 
 ```bash
 minimap2 -t 12 clip.FALC.fasta 1499.fastq.gz | samtools sort -@ 4 -m 1G -o clip.FALC.bam
@@ -53,10 +63,10 @@ perl multiLongShot.pl  clip.FALC.fasta.fai  clip.FALC.bam  16
 ### Manually fix haplotype switches
 
 Visualise contigs in IGV and identify haplotype switching.
-This is a list of haplotype switches and which of hap1/hap2 is the A1+A2 bin
-e.g. contig [hap 1/2] breakpoint [1/2] breakpoint ...
-Contigs were split at these breakpoints to allow the best possible separation of
-A1 + A2 haplomes from B haplome. Manually sorted the BAM files.
+This is a list of haplotype switches. The Longshot-phased haplotypes are 
+labelled either side of breakpoints to denote which of the haplotypes is the 
+A1+A2 haplome. Contigs were split at these breakpoints and the BAM files were 
+manually sorted into the separate directories for each haplome for read-binning.
 
 ```text
 000013F [1] 130k [2]
@@ -93,7 +103,7 @@ A1 + A2 haplomes from B haplome. Manually sorted the BAM files.
 
 ### Read binning
 
-Note: 'haploid' = B haplome and 'diploid' = A1A2 haplomes
+Note: 'haploid' = B haplome directory and 'diploid' = A1A2 haplomes directory
 
 ```bash
 # pull ids for each bin
@@ -132,7 +142,8 @@ canu -p 1499.B -d bin-B \
     -nanopore-raw 1499.B.fail.fastq.gz \
     -pacbio-raw 1499.B.pb.fastq.gz \
     -stopOnReadQuality=false \
-    -minReadLength=2500 -minOverlapLength=2000 \
+    -minReadLength=2500 \
+    -minOverlapLength=2000 \
     -correctedErrorRate=0.11
 
 # diploid canu assembly
@@ -142,7 +153,8 @@ canu -p 1499.B -d bin-A1A2 \
     -nanopore-raw 1499.A1A2.fail.fastq.gz \
     -pacbio-raw 1499.A1A2.pb.fastq.gz \
     -stopOnReadQuality=false \
-    -minReadLength=2500 -minOverlapLength=2000 \
+    -minReadLength=2500 \
+    -minOverlapLength=2000 \
     -correctedErrorRate=0.11
 ```
 Purge Haplotigs was run on the read-binned assemblies following the same 
@@ -188,8 +200,10 @@ cat 1499.racon.pilon.fasta | sed 's/_pilon//' > 1499.diploid.newPolished.fasta
 ## Annotate
 
 We annotated genes with Augustus and used these for initially investigating
-the key genes but the results in the manuscript relating to genes affected by
-SVs all relate to the AWRI2804 reference annotations. 
+the key genes, but the results in the manuscript relating to genes affected by
+SVs all relate to the AWRI2804 reference annotations. AWRI2804 annotations 
+are available [HERE](https://github.com/mroach-awri/BrettanomycesGenComp), 
+listed as "B. bruxellensis".
 
 ```bash
 augustus --species=saccharomyces_cerevisiae_S288C 1499.diploid.newPolished.fasta > 1499.gff
@@ -225,7 +239,9 @@ perl addDraftNames.pl 1499.diploid.uniprotkb.outfmt6.gz uniprot_sprot.names.tsv 
 mv tmp 1499.faa
 ```
 
-## SV calling: Sniffles
+## SV calling
+
+### Sniffles
 
 Most of the Sniffles SV calls overlapped with the below SV calling pipeline, so 
 they were left out of the final manuscript.
@@ -252,7 +268,12 @@ for i in 1499 1499_11A 1499_17A 1499_52C; do
 # manually curate with genome-ribbon: doi.org/10.1101/082123 
 ```
 
-## SV calling: depth- and SNP-based
+### Read-depth and SNP-based SV pipeline
+
+The pipeline uses SNP and read-depth comparisons to annotate SV features 
+(deletions, duplications, conversions) in theevolved isolates. Annotations are 
+manually inspected and adjusted and the pipeline is rerun to plot a karyogram of
+the SVs relative to the reference assembly for AWRI2804.
 
 ```bash
 # align 'diploid' queries to haploid reference
@@ -288,6 +309,42 @@ snakemake  -s findGenomeModifications.py  -j 16
 ```
 
 
+### Clipped Read Island-based SV calling for 2804
 
+AWRI2804, a haploid strain, didn't have any notable changes identified from the 
+read-depth-based SV calling, and some apparent transpositions were not being
+called by Sniffles. We therefore attempted to identify transpositions based on 
+concentrations of clipped long-read mapping, comparing to the control strian.
 
+```bash
+# extract soft-clipped reads from bam file
+samtools view -h ../BAMS/2804_50G_control_23B.2804.bam \
+    | perl -e 'while(<>){@l=split/\s+/;if(($l[0]=~/^@/) or ($l[5]=~/\d\d\d\dS/)){print $_;}}' \
+    | samtools sort - > 23B.clipped.bam
+
+# manually inspect in IGV and copy coordinates of clipped read islants to file:
+# clippedReadIslands.bed; this wouldn't be practical for large genomes.
+
+# get the clipped read IDs of soft-clipped reads in clipped island regions
+grep 23B clippedReadIslands.bed > 23B.clipped.bed
+bedtools intersect -a 23B.clipped.bam -b 23B.clipped.bed \
+    | samtools view \
+    | awk '{print $1}' > 23B.clipped.readIDs 
+
+# get the reads themselves
+zcat ../SEQ/upload/2804_50G_23B.fastq.gz \
+    | ./fastqByReadID.pl 23B.clipped.readIDs \
+    | gzip - > 23B.clippedReads.fastq.gz 
+
+# reassemble these reads
+minimap2 -x ava-ont -t 12 23B.clippedReads.fastq.gz 23B.clippedReads.fastq.gz \
+    | gzip - > 23B.paf
+miniasm -f 23B.clippedReads.fastq.gz 23B.paf > 23B.gfa
+awk '$1 ~/S/ {print ">"$2"\n"$3}' 23B.gfa > 23B.clipAsm.fasta
+
+# quick polish
+minimap2 -t 12 23B.clipAsm.fasta 23B.clippedReads.fastq.gz > 23B.asm.paf
+racon 23B.clippedReads.fastq.gz 23B.asm.paf 23B.clipAsm.fasta -t 12 > 23B.asm.racon.fasta
+
+```
 
